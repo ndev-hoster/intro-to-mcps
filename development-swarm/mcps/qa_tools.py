@@ -5,13 +5,14 @@ import functools
 def check_correct_ws(path: str) -> bool:
     abs_path = os.path.realpath(path)
     qa_space = os.path.realpath("qa-space")
-    return abs_path.startswith(qa_space)
+    dev_space = os.path.realpath("dev-space")
+    return abs_path.startswith(qa_space) or abs_path.startswith(dev_space)
 
 def require_qa_space(func):
     @functools.wraps(func)  # preserves original function name/docstring for MCP
     def wrapper(path: str = ".", *args, **kwargs):
         if not check_correct_ws(path):
-            return f"Access denied: '{path}' is outside qa-space/"
+            return f"Access denied: '{path}' is outside qa/dev space"
         return func(path, *args, **kwargs)
     return wrapper
 

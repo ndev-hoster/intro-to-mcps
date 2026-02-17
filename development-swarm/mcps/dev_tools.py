@@ -15,7 +15,6 @@ def require_dev_space(func):
         return func(path, *args, **kwargs)
     return wrapper
 
-import file_tools
 
 file_tools.list_cwd_contents = require_dev_space(file_tools.list_cwd_contents)
 file_tools.read_file = require_dev_space(file_tools.read_file)
