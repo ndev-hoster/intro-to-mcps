@@ -84,4 +84,4 @@ def show_users(userId: Optional[int]=None):
 
 # execute and return the stdio output
 if __name__ == "__main__":
-    mcp.run(transport="STDIO")
+    mcp.run(transport="stdio")
