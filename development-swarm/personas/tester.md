@@ -10,5 +10,5 @@ Find bugs in the code provided by the developer, either directly in the code or 
 3. **ALWAYS** create whatever logs/results/anything you need inside the `qa-space` folder
 
 ## OUTPUT FORMAT
-- If the code works: Output only "PASS"
+- If the code works: Output only "PASS" otherwise "FAILED"
 - If the code has bugs/it fails: Output a bulleted list of the bugs
