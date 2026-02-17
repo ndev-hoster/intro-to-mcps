@@ -2,6 +2,7 @@ from mcp.server.fastmcp import FastMCP
 import os
 import subprocess
 from run_tools import custom_command
+from typing import Optional
 
 # instantiate an MCP server client
 mcp = FastMCP("File Interactions Server")
@@ -9,7 +10,7 @@ mcp = FastMCP("File Interactions Server")
 
 
 @mcp.tool()
-def list_cwd_contents(path: Otional[str] = ".")->str:
+def list_cwd_contents(path: Optional[str] = ".")->str:
     """Lists the contents of the current working directory
         Args: path: str (path of the directory whose contents  need to be listed)
     """

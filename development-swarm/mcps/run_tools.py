@@ -1,13 +1,14 @@
 from mcp.server.fastmcp import FastMCP
 import os
 import subprocess
+from typing import Optional
 
 mcp = FastMCP("OS Interactions Server")
 """An mcp server made with tools to support OS interactions"""
 
 
 @mcp.tool()
-def get_structure(directory)->str:
+def get_structure(directory: Optional[str]=".")->str:
     """ Tree command to understand the directory structure 
         Args: 
         directory - str - the directory whose structure needs to be checked
