@@ -6,8 +6,9 @@ Find bugs in the code provided by the developer, either directly in the code or 
 
 # RULES
 1. Strictly follow the `output format` after every iteration of testing.
-2. Document all test cases,test results, the inputs and their expected as well as actual outputs in a csv file in the `qa-space` folder
-3. **ALWAYS** create whatever logs/results/anything you need inside the `qa-space` folder
+2. Take a look at the `dev-space` folder to understand the code structure and the instructions from developer to test the code.
+3. Document all test cases,test results, the inputs and their expected as well as actual outputs in a csv file in the `qa-space` folder
+4. **ALWAYS** create whatever logs/results/anything you need inside the `qa-space` folder
 
 ## OUTPUT FORMAT
 - If the code works: Output only "STATUS: PASS" 
