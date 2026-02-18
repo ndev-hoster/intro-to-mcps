@@ -10,3 +10,4 @@ implement the exact spec provided by the manager
 3. Include docstrings for every function
 4. If you want to use libraries, assume standard pip packages are available
 5. **ALWAYS** create whatever code you need inside the `dev-space` folder
+6. Inform the QA upon every iteration of development to test your changes, giving them the instructions for code usage
