@@ -36,7 +36,7 @@ async def run_qa(prompt, mcp_session, gemini, system_prompt):
     tool_list = await mcp_session.list_tools()
     tools = tool_list.tools
     iteration = 0
-    MAX_QA_ITERATIONS = 15  # Add safety limit
+    MAX_QA_ITERATIONS = 20  # Add safety limit
     
     while iteration < MAX_QA_ITERATIONS:
         iteration += 1
@@ -66,7 +66,7 @@ async def run_qa(prompt, mcp_session, gemini, system_prompt):
         ]
     
     logging.warning("QA max iterations reached")
-    return "QA evaluation incomplete - max iterations reached"
+    return "QA evaluation incomplete - MAX_QA_ITERATIONS reached"
 
 
 # -------------------------------------------------------
@@ -221,7 +221,7 @@ async def make_it(user_request):
 
             # 4️⃣ Iterative refinement loop
             iteration = 0
-            MAX_ITERS = 5
+            MAX_ITERS = 10
 
             # Check for common failure indicators
             while iteration < MAX_ITERS and any(keyword in qa_output.lower() for keyword in ['fail', 'error', 'issue', 'bug', 'problem']):
@@ -264,7 +264,7 @@ def cleanup():
     os.makedirs("qa-space/")
     print("############# Cleanup of directories successful #############")
 async def main():
-    user_input = "A cli based calculator that evaluates whatever expression I put into it."
+    user_input = "A cli based calculator that evaluates whatever expression I put into it, for simple BODMAS ops only"
     cleanup()
     await make_it(user_input)
 

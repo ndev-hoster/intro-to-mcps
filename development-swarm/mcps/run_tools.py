@@ -27,6 +27,25 @@ def execute_and_log_command(rawcommand:str, logfile:str)->str:
         subprocess.run(command_list, stdout=log_file, stderr=log_file)
     return f"Command {rawcommand} executed and logged to {logfile}"
 
+# @mcp.tool()
+# def run_python_script(path:str, inputs: Optional[str]=None)->str:
+#     """ Function to execute the python script for the given path
+#     Args: 
+#         path - str - path of the python script
+#         input - str - a string to be passed as an arg to the script if required
+#     """
+#     command_list=["python", path]
+#     if inputs:
+#         command_list.append(inputs)
+#     try:
+#         subprocess.run(command_list, shell=True, check=True, capture_output=True, text=True)
+#         return f"Ran the python script {path} {inputs} successfully"
+#     except subprocess.CalledProcessError as e:
+#         error_message = f"Error running script {path}: {e.stderr}"
+#         return error_message
+
+
+
 @mcp.tool()
 def custom_command(command: str)->str:
     """Runs a custom command not available in the other tools"""

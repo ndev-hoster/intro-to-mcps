@@ -46,6 +46,7 @@ mcp.tool()(require_qa_space_kwarg("filepath")(file_tools.read_file))
 mcp.tool()(require_qa_space_kwarg("filepath")(file_tools.rm))
 mcp.tool()(require_qa_space_kwarg("filepath")(file_tools.write_file))
 mcp.tool()(require_qa_space_kwarg("directory")(run_tools.get_structure))
+# mcp.tool()(require_qa_space_kwarg("path")(run_tools.run_python_script))
 
 @mcp.tool()
 def execute_and_log_command(rawcommand: str, logfile: str) -> str:
