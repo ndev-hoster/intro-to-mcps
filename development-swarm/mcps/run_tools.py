@@ -16,7 +16,7 @@ def get_structure(directory: Optional[str]=".")->str:
     return str(subprocess.check_output(["tree",directory,"-aL","3"], shell=True), "utf-8")
 
 @mcp.tool()
-def execute_and_log_command(rawcommand:str, logfile:str):
+def execute_and_log_command(rawcommand:str, logfile:str)->str:
     """ Function to log the output of a command to a given file 
     Args: 
         rawcommand - str - command that needs to be ran
@@ -25,6 +25,7 @@ def execute_and_log_command(rawcommand:str, logfile:str):
     command_list=rawcommand.split(" ")
     with open(logfile, "w") as log_file:
         subprocess.run(command_list, stdout=log_file, stderr=log_file)
+    return f"Command {rawcommand} executed and logged to {logfile}"
 
 @mcp.tool()
 def custom_command(command: str)->str:
