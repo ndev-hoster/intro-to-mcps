@@ -27,31 +27,30 @@ def execute_and_log_command(rawcommand:str, logfile:str)->str:
         subprocess.run(command_list, stdout=log_file, stderr=log_file)
     return f"Command {rawcommand} executed and logged to {logfile}"
 
-# @mcp.tool()
-# def run_python_script(path:str, inputs: Optional[str]=None)->str:
-#     """ Function to execute the python script for the given path
-#     Args: 
-#         path - str - path of the python script
-#         input - str - a string to be passed as an arg to the script if required
-#     """
-#     command_list=["python", path]
-#     if inputs:
-#         command_list.append(inputs)
-#     try:
-#         subprocess.run(command_list, shell=True, check=True, capture_output=True, text=True)
-#         return f"Ran the python script {path} {inputs} successfully"
-#     except subprocess.CalledProcessError as e:
-#         error_message = f"Error running script {path}: {e.stderr}"
-#         return error_message
+@mcp.tool()
+def run_test(command: str) -> str:
+    """Execute a python command to test a python script
+    and return output (auto-approved for testing)
+    Args: command: str (command to run)
+    """
+    allowed_commands=["python"]
+    if command.split(" ")[0] in allowed_commands:
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                cwd=os.getcwd()
+            )
+            return f"Exit code: {result.returncode}\nOutput:\n{result.stdout}\nErrors:\n{result.stderr}"
+        except Exception as e:
+            return f"Execution failed: {str(e)}"
 
 
 
 @mcp.tool()
 def custom_command(command: str)->str:
     """Runs a custom command not available in the other tools"""
-    allow_exec=input(f"Allow the execution of {command}? [y/n]:").lower()
-    if allow_exec == "y":
-        command_list=command.split(" ")
-        return str(subprocess.check_output(command_list, shell=True), "utf-8")
-    else:
-        return "Command not executed"
+    return str(subprocess.check_output(command_list, shell=True), "utf-8")

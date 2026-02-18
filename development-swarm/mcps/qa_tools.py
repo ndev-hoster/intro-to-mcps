@@ -60,6 +60,7 @@ def execute_and_log_command(rawcommand: str, logfile: str) -> str:
 #### GUARDED TOOLS END #######
 mcp.tool()(file_tools.sys_info)
 mcp.tool()(run_tools.custom_command)
+mcp.tool()(run_tools.run_test)
 
 
 if __name__ == "__main__":

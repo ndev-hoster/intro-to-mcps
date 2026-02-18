@@ -36,8 +36,9 @@ async def run_qa(prompt, mcp_session, gemini, system_prompt):
     tool_list = await mcp_session.list_tools()
     tools = tool_list.tools
     iteration = 0
-    MAX_QA_ITERATIONS = 20  # Add safety limit
-    
+    MAX_QA_ITERATIONS = 15
+    logging.info(f"QA Started Testing....")
+
     while iteration < MAX_QA_ITERATIONS:
         iteration += 1
         resp = gemini.models.generate_content(
@@ -50,12 +51,25 @@ async def run_qa(prompt, mcp_session, gemini, system_prompt):
             ),
         )
 
+        # Check if QA has finished (looks for STATUS in response)
+        if resp.text and "STATUS:" in resp.text.upper():
+            logging.info(f"[QA] Final response detected: {resp.text}")
+            return resp.text
+        
+        # If no function call → also done
         if not resp.function_calls:
             return resp.text
 
         call = resp.function_calls[0]
         result = await mcp_session.call_tool(call.name, call.args)
+        
+        if resp.text:
+            logging.info(f"[QA] Response: {resp.text}")
 
+        logging.info(f"[QA] Tool: {call.name}")
+        logging.info(f"[QA] Args: {json.dumps(call.args, indent=2)}")
+        logging.info(f"[QA] Result: {result.content[0].text[:200]}")
+        
         contents = [
             prompt,
             resp.candidates[0].content,
@@ -66,7 +80,7 @@ async def run_qa(prompt, mcp_session, gemini, system_prompt):
         ]
     
     logging.warning("QA max iterations reached")
-    return "QA evaluation incomplete - MAX_QA_ITERATIONS reached"
+    return "STATUS: FAIL - QA evaluation incomplete (max iterations reached)"
 
 
 # -------------------------------------------------------
@@ -74,6 +88,7 @@ async def run_qa(prompt, mcp_session, gemini, system_prompt):
 # -------------------------------------------------------
 
 async def run_dev(prompt, mcp_session, gemini, system_prompt):
+    allowed_commands = ["python"]
     contents = [prompt]
     iteration = 0
     MAX_DEV_ITERATIONS = 20  # Safety limit
@@ -106,7 +121,7 @@ async def run_dev(prompt, mcp_session, gemini, system_prompt):
         logging.info(f"Function call detected: {call.name}")
         logging.info(f"Arguments: {json.dumps(call.args, indent=2)}")
 
-        if call.name == "custom_command":
+        if call.name == "custom_command" and call.args.get("command").split(" ")[0] not in allowed_commands:
             command = call.args.get("command")
             print(f"\n⚠️ Command requested:\n{command}")
             decision = input("Approve? [y/n]: ").strip().lower()
