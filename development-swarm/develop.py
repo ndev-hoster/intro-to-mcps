@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import shutil
 import subprocess
 from dotenv import load_dotenv
 import logging
@@ -24,18 +25,60 @@ load_dotenv()
 # -------------------------------------------------------
 
 CLAUDE_MODEL = "claude-opus-4-6"
-GEMINI_MODEL = "gemini-2.5-pro"
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# -------------------------------------------------------
+# QA LOOP (Gemini)
+# -------------------------------------------------------
+
+async def run_qa(prompt, mcp_session, gemini, system_prompt):
+    contents = prompt
+    tool_list = await mcp_session.list_tools()
+    tools = tool_list.tools
+    iteration = 0
+    MAX_QA_ITERATIONS = 15  # Add safety limit
+    
+    while iteration < MAX_QA_ITERATIONS:
+        iteration += 1
+        resp = gemini.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.1,
+                tools=tools
+            ),
+        )
+
+        if not resp.function_calls:
+            return resp.text
+
+        call = resp.function_calls[0]
+        result = await mcp_session.call_tool(call.name, call.args)
+
+        contents = [
+            prompt,
+            resp.candidates[0].content,
+            types.Part.from_function_response(
+                name=call.name,
+                response={"result": result.content[0].text}
+            )
+        ]
+    
+    logging.warning("QA max iterations reached")
+    return "QA evaluation incomplete - max iterations reached"
 
 
 # -------------------------------------------------------
-# DEV LOOP (Claude)
+# DEV LOOP (Gemini)
 # -------------------------------------------------------
 
 async def run_dev(prompt, mcp_session, gemini, system_prompt):
     contents = [prompt]
     iteration = 0
+    MAX_DEV_ITERATIONS = 20  # Safety limit
 
-    while True:
+    while iteration < MAX_DEV_ITERATIONS:
         iteration += 1
         logging.info(f"[ITERATION {iteration}] Sending to Gemini")
         logging.info(f"Current contents length: {len(contents)}")
@@ -52,7 +95,7 @@ async def run_dev(prompt, mcp_session, gemini, system_prompt):
             ),
         )
 
-        # If no function call → we’re done
+        # If no function call → we're done
         if not resp.function_calls:
             logging.info("No function call returned. Final answer reached.")
             logging.info(f"Final text: {resp.text}")
@@ -65,7 +108,6 @@ async def run_dev(prompt, mcp_session, gemini, system_prompt):
 
         if call.name == "custom_command":
             command = call.args.get("command")
-
             print(f"\n⚠️ Command requested:\n{command}")
             decision = input("Approve? [y/n]: ").strip().lower()
 
@@ -84,13 +126,11 @@ async def run_dev(prompt, mcp_session, gemini, system_prompt):
                         tool_result_text = "Command executed successfully."
                 except Exception as e:
                     tool_result_text = f"Execution error: {str(e)}"
-
         else:
             result = await mcp_session.call_tool(call.name, call.args)
             tool_result_text = result.content[0].text
 
         logging.info(f"Tool returned: {tool_result_text}")
-
 
         contents.extend([
             resp.candidates[0].content,
@@ -100,50 +140,12 @@ async def run_dev(prompt, mcp_session, gemini, system_prompt):
             )
         ])
 
-        # # 🛑 Emergency brake
-        # if iteration > 20:
-        #     logging.error("Max iterations reached. Breaking loop.")
-        #     return "Error: Too many tool calls (possible infinite loop)."
-
+    logging.error("Max dev iterations reached. Breaking loop.")
+    return "Error: Too many tool calls (possible infinite loop)."
 
 
 # -------------------------------------------------------
-# QA LOOP (Gemini)
-# -------------------------------------------------------
-
-async def run_qa(prompt, mcp_session, gemini, system_prompt):
-    contents = prompt
-    tool_list = await mcp_session.list_tools()
-    tools = tool_list.tools
-    while True:
-        resp = gemini.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=contents,
-        config=types.GenerateContentConfig(
-        system_instruction=system_prompt,
-        temperature=0.1,
-        tools=tools
-    ),
-        )
-
-        if not resp.function_calls:
-            return resp.text
-
-        call = resp.function_calls[0]
-        result = await mcp_session.call_tool(call.name, call.args)
-
-        contents = [
-            prompt,
-            resp.candidates[0].content,
-            types.Part.from_function_response(
-                name=call.name,
-                response={"result": result.content[0].text}
-            )
-        ]
-
-
-# -------------------------------------------------------
-# SWARM ENTRY POINT
+# SWARM ENTRY POINT (CLEANED UP)
 # -------------------------------------------------------
 
 async def make_it(user_request):
@@ -176,7 +178,7 @@ async def make_it(user_request):
         env=None
     )
 
-    # --- Start MCP sessions using official async context pattern ---
+    # --- Start MCP sessions ---
     async with stdio_client(dev_params) as (dev_read, dev_write), \
                stdio_client(qa_params) as (qa_read, qa_write):
 
@@ -186,7 +188,7 @@ async def make_it(user_request):
             await dev_mcp.initialize()
             await qa_mcp.initialize()
 
-            # 1️⃣ Manager creates spec (Gemini)
+            # 1️⃣ Manager creates spec
             mgr_resp = gemini.models.generate_content(
                 model="gemini-3-flash-preview",
                 contents=user_request,
@@ -199,41 +201,30 @@ async def make_it(user_request):
             spec = mgr_resp.text
             print("\nManager Spec:\n", spec)
 
-            # 2️⃣ Developer builds using Claude + dev MCP tools
-            dev_output = await run_dev(
-                spec,
-                dev_mcp,
-                gemini,
-                developer_prompt
-            )
-
+            # 2️⃣ Developer builds
+            dev_output = await run_dev(spec, dev_mcp, gemini, developer_prompt)
             print("\nDeveloper Output:\n", dev_output)
 
-            # 3️⃣ QA evaluates using Gemini + qa MCP tools
+            # 3️⃣ QA evaluates
             qa_input = f"""
-                {qa_prompt}
-
                 Manager Spec:
                 {spec}
 
                 Developer Output:
                 {dev_output}
-                """
 
-            qa_output = await run_qa(
-                qa_input,
-                qa_mcp,
-                gemini,
-                qa_prompt
-            )
+                Please test the code and report any issues.
+            """
 
+            qa_output = await run_qa(qa_input, qa_mcp, gemini, qa_prompt)
             print("\nQA Result:\n", qa_output)
 
             # 4️⃣ Iterative refinement loop
             iteration = 0
-            MAX_ITERS = 3
+            MAX_ITERS = 5
 
-            while "STATUS: FAILED" in qa_output and iteration < MAX_ITERS:
+            # Check for common failure indicators
+            while iteration < MAX_ITERS and any(keyword in qa_output.lower() for keyword in ['fail', 'error', 'issue', 'bug', 'problem']):
                 iteration += 1
                 print(f"\n🔁 Iteration {iteration}")
 
@@ -245,100 +236,36 @@ async def make_it(user_request):
                 )
 
                 qa_input = f"""
-                    {qa_prompt}
-
                     Manager Spec:
                     {spec}
 
                     Developer Output:
                     {dev_output}
-                    """
 
-                qa_output = await run_qa(
-                    qa_input,
-                    qa_mcp,
-                    gemini,
-                    qa_prompt
-                )
+                    Please test the code and report any issues.
+                """
 
-            print("\nFinal QA Result:\n", qa_output)
-
-    # clients
-    claude = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-    gem_key = os.environ.get("GEMINI_API_KEY")
-    gemini = genai.Client(api_key=gem_key)
-
-    # personas
-    manager_prompt = load_persona("manager")
-    developer_prompt = load_persona("developer")
-    qa_prompt = load_persona("tester")
-
-    # MCP sessions (must live INSIDE make_it)
-    async with stdio_client(["python", "mcps/dev_tools.py"]) as dev_server, \
-               stdio_client(["python", "mcps/qa_tools.py"]) as qa_server:
-
-        dev_mcp = ClientSession(dev_server)
-        qa_mcp = ClientSession(qa_server)
-
-        await dev_mcp.initialize()
-        await qa_mcp.initialize()
-
-        try:
-            # 1️⃣ Manager spec (Gemini)
-            mgr_resp = gemini.models.generate_content(
-                model="gemini-3-flash-preview",
-                contents=user_request,
-                config={
-                    "system_instruction": manager_prompt,
-                    "temperature": 0.7
-                }
-            )
-
-            spec = mgr_resp.text
-            print("\nManager Spec:\n", spec)
-
-            # 2️⃣ Dev builds
-            dev_output = await run_dev(spec, dev_mcp, gemini, developer_prompt)
-            print("\nDeveloper Output:\n", dev_output)
-
-            # 3️⃣ QA evaluates
-            qa_input = f"{qa_prompt}\nManager Spec:\n{spec}\nDeveloper Output:\n{dev_output}"
-            qa_output = await run_qa(qa_input, qa_mcp, gemini, qa_prompt)
-
-            print("\nQA Result:\n", qa_output)
-
-            # 4️⃣ Simple pass/fail loop
-            iteration = 0
-            MAX_ITERS = 3
-
-            while "FAILED" in qa_output and iteration < MAX_ITERS:
-                iteration += 1
-                print(f"\n🔁 Iteration {iteration}")
-
-                dev_output = await run_dev(
-                    spec + "\nFix QA issues.",
-                    dev_mcp,
-                    gemini,
-                    developer_prompt
-                )
-
-                qa_input = f"{qa_prompt}\nManager Spec:\n{spec}\nDeveloper Output:\n{dev_output}"
                 qa_output = await run_qa(qa_input, qa_mcp, gemini, qa_prompt)
+                print(f"\nQA Result (Iteration {iteration}):\n", qa_output)
 
-            print("\nFinal QA Result:\n", qa_output)
-        finally:
-            await dev_mcp.close()
-            await qa_mcp.close()
-            await gemini.close()
-
-
+            print("\n✅ Final QA Result:\n", qa_output)
 
 # -------------------------------------------------------
 # CLI ENTRY
 # -------------------------------------------------------
 
+def cleanup():
+    if os.path.exists("dev-space/"):
+        shutil.rmtree("dev-space/")
+    if os.path.exists("qa-space/"):
+        shutil.rmtree("qa-space/")
+
+    os.makedirs("dev-space/")
+    os.makedirs("qa-space/")
+    print("############# Cleanup of directories successful #############")
 async def main():
     user_input = "A cli based calculator that evaluates whatever expression I put into it."
+    cleanup()
     await make_it(user_input)
 
 if __name__ == "__main__":

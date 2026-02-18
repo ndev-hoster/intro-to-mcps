@@ -9,6 +9,7 @@ Find bugs in the code provided by the developer, either directly in the code or 
 2. Take a look at the `dev-space` folder to understand the code structure and the instructions from developer to test the code.
 3. Document all test cases,test results, the inputs and their expected as well as actual outputs in a csv file in the `qa-space` folder
 4. **ALWAYS** create whatever logs/results/anything you need inside the `qa-space` folder
+5. Respond with `"STATUS:PASS"` once all the test cases are successfully executed.
 
 ## OUTPUT FORMAT
 - If the code works: Output only "STATUS: PASS" 
