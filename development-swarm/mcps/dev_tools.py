@@ -35,11 +35,12 @@ def require_dev_space_kwarg(argname: str):
 
 
 #### GUARDED TOOLS #######
-mcp.tool()(require_dev_space(file_tools.list_cwd_contents))
-mcp.tool()(require_dev_space(file_tools.mkdir))
-mcp.tool()(require_dev_space(file_tools.read_file))
-mcp.tool()(require_dev_space(file_tools.write_file))
-mcp.tool()(require_dev_space(run_tools.get_structure))
+mcp.tool()(require_dev_space_kwarg("path")(file_tools.list_cwd_contents))
+mcp.tool()(require_dev_space_kwarg("directory")(file_tools.mkdir))
+mcp.tool()(require_dev_space_kwarg("filepath")(file_tools.read_file))
+mcp.tool()(require_dev_space_kwarg("filepath")(file_tools.rm))
+mcp.tool()(require_dev_space_kwarg("filepath")(file_tools.write_file))
+mcp.tool()(require_dev_space_kwarg("directory")(run_tools.get_structure))
 
 @mcp.tool()
 def execute_and_log_command(rawcommand: str, logfile: str) -> str:

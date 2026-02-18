@@ -1,5 +1,7 @@
 import asyncio
 import os
+import sys
+import subprocess
 from dotenv import load_dotenv
 import logging
 import json
@@ -61,22 +63,47 @@ async def run_dev(prompt, mcp_session, gemini, system_prompt):
         logging.info(f"Function call detected: {call.name}")
         logging.info(f"Arguments: {json.dumps(call.args, indent=2)}")
 
-        result = await mcp_session.call_tool(call.name, call.args)
+        if call.name == "custom_command":
+            command = call.args.get("command")
 
-        logging.info(f"Tool returned: {result.content}")
+            print(f"\n⚠️ Command requested:\n{command}")
+            decision = input("Approve? [y/n]: ").strip().lower()
+
+            if decision != "y":
+                tool_result_text = "Command blocked by user."
+            else:
+                try:
+                    proc = subprocess.run(
+                        command,
+                        shell=True,
+                        capture_output=True,
+                        text=True
+                    )
+                    tool_result_text = proc.stdout + proc.stderr
+                    if not tool_result_text.strip():
+                        tool_result_text = "Command executed successfully."
+                except Exception as e:
+                    tool_result_text = f"Execution error: {str(e)}"
+
+        else:
+            result = await mcp_session.call_tool(call.name, call.args)
+            tool_result_text = result.content[0].text
+
+        logging.info(f"Tool returned: {tool_result_text}")
+
 
         contents.extend([
             resp.candidates[0].content,
             types.Part.from_function_response(
                 name=call.name,
-                response={"result": result.content[0].text}
+                response={"result": tool_result_text}
             )
         ])
 
-        # 🛑 Emergency brake
-        if iteration > 20:
-            logging.error("Max iterations reached. Breaking loop.")
-            return "Error: Too many tool calls (possible infinite loop)."
+        # # 🛑 Emergency brake
+        # if iteration > 20:
+        #     logging.error("Max iterations reached. Breaking loop.")
+        #     return "Error: Too many tool calls (possible infinite loop)."
 
 
 
@@ -108,7 +135,7 @@ async def run_qa(prompt, mcp_session, gemini, system_prompt):
         contents = [
             prompt,
             resp.candidates[0].content,
-            GeminiTypes.Part.from_function_response(
+            types.Part.from_function_response(
                 name=call.name,
                 response={"result": result.content[0].text}
             )
@@ -206,12 +233,12 @@ async def make_it(user_request):
             iteration = 0
             MAX_ITERS = 3
 
-            while "FAILED" in qa_output and iteration < MAX_ITERS:
+            while "STATUS: FAILED" in qa_output and iteration < MAX_ITERS:
                 iteration += 1
                 print(f"\n🔁 Iteration {iteration}")
 
                 dev_output = await run_dev(
-                    spec + "\nFix QA issues.",
+                    f"{spec}\n\nQA Feedback:\n{qa_output}\n\nFix all reported issues.",
                     dev_mcp,
                     gemini,
                     developer_prompt
@@ -299,10 +326,10 @@ async def make_it(user_request):
                 qa_output = await run_qa(qa_input, qa_mcp, gemini, qa_prompt)
 
             print("\nFinal QA Result:\n", qa_output)
-
         finally:
             await dev_mcp.close()
             await qa_mcp.close()
+            await gemini.close()
 
 
 
@@ -310,7 +337,13 @@ async def make_it(user_request):
 # CLI ENTRY
 # -------------------------------------------------------
 
-if __name__ == "__main__":
-    # user_input = input("What do you want to build today? > ")
+async def main():
     user_input = "A cli based calculator that evaluates whatever expression I put into it."
-    asyncio.run(make_it(user_input))
+    await make_it(user_input)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n🛑 Interrupted by user. Shutting down gracefully...")
+        sys.exit(0)

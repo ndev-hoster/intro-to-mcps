@@ -26,12 +26,26 @@ def require_qa_space(func):
         return func(path, *args, **kwargs)
     return wrapper
 
+def require_qa_space_kwarg(argname: str):
+    """For functions where the path argument isn't the first positional arg"""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            path = kwargs.get(argname) or (args[0] if args else None)
+            if not path or not check_correct_ws(path):
+                return f"Access denied: '{path}' is outside dev-space/"
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 #### GUARDED TOOLS #######
-mcp.tool()(require_qa_space(file_tools.list_cwd_contents))
-mcp.tool()(require_qa_space(file_tools.mkdir))
-mcp.tool()(require_qa_space(file_tools.read_file))
-mcp.tool()(require_qa_space(file_tools.write_file))
-mcp.tool()(require_qa_space(run_tools.get_structure))
+mcp.tool()(require_qa_space_kwarg("path")(file_tools.list_cwd_contents))
+mcp.tool()(require_qa_space_kwarg("directory")(file_tools.mkdir))
+mcp.tool()(require_qa_space_kwarg("filepath")(file_tools.read_file))
+mcp.tool()(require_qa_space_kwarg("filepath")(file_tools.rm))
+mcp.tool()(require_qa_space_kwarg("filepath")(file_tools.write_file))
+mcp.tool()(require_qa_space_kwarg("directory")(run_tools.get_structure))
 
 @mcp.tool()
 def execute_and_log_command(rawcommand: str, logfile: str) -> str:
