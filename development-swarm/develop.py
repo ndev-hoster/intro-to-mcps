@@ -25,7 +25,7 @@ load_dotenv()
 # -------------------------------------------------------
 
 CLAUDE_MODEL = "claude-opus-4-6"
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3-pro-preview"
 
 # -------------------------------------------------------
 # QA LOOP (Gemini)
