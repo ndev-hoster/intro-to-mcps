@@ -1,0 +1,15 @@
+{
+    "mcpServers": {
+        "weather": {
+            "command": "uv",
+            "args": [
+                "run",
+                "--with",
+                "mcp[cli]",
+                "mcp",
+                "run",
+                "/home/kratoes/ndev-git/intro-to-mcps/vid-3/server/weather.py"
+            ]
+        }
+    }
+}

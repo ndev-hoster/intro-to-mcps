@@ -1,0 +1,15 @@
+[project]
+name = "vid-3"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "asyncio>=4.0.0",
+    "dotenv>=0.9.9",
+    "httpx>=0.28.1",
+    "langchain-groq>=1.1.2",
+    "mcp-use>=1.6.0",
+    "mcp[cli]>=1.26.0",
+    "nest-asyncio>=1.6.0",
+]
